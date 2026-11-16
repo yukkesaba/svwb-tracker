@@ -1,0 +1,18 @@
+# 環境・ビルドの生成物
+.venv/
+__pycache__/
+*.pyc
+build/
+app/
+release/
+versions/
+
+# 自分の戦績・設定
+data/
+
+# ゲーム画面のスクリーンショット（著作物なので公開しない。テストは無ければ自動で飛ばす）
+tests/fixtures/
+
+# 作業用ファイル
+*.ai
+配布用/booth/名称未設定-1.png

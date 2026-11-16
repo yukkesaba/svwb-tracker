@@ -1,0 +1,18 @@
+SVWB Tracker が同梱しているソフトウェアとライセンス
+====================================================
+
+■ Qt for Python (PySide6 / Shiboken6) および Qt 6
+  ライセンス: GNU Lesser General Public License v3 (LGPL-3.0)
+  https://www.qt.io/qt-for-python
+  ライセンス全文: 同じフォルダの LGPL-3.0.txt と GPL-3.0.txt
+  ソースコード: https://code.qt.io/  （Qt / PySide6 は改変せずに使っています）
+  Qt のライブラリは「_internal」フォルダ内の個別の DLL として同梱しています。
+  利用者は、互換性のある別のバージョンの DLL に差し替えて使うことができます。
+
+■ OpenCV (opencv-python)          Apache License 2.0      https://opencv.org/
+■ NumPy                           BSD 3-Clause License    https://numpy.org/
+■ python-mss                      MIT License             https://github.com/BoboTiG/python-mss
+■ pywin32                         PSF License             https://github.com/mhammond/pywin32
+■ PyWinRT (winrt-*)               MIT License             https://github.com/pywinrt/pywinrt
+■ Python 3.10                     PSF License             https://www.python.org/
+■ PyInstaller (bootloader)        GPL 2.0 with bootloader exception（配布物への制約なし）
