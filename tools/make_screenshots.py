@@ -1,6 +1,6 @@
-"""BOOTH 掲載用のスクショ（配布用/booth/*.png）を、自分の戦績の日時だけずらして撮る
+"""README 用のスクショ（docs/screenshots/*.png）を、自分の戦績の日時だけずらして撮る
 
-    python tools/make_booth_shots.py
+    python tools/make_screenshots.py
 
 本物の DB は読み取り専用で開き、一時フォルダの DB に写してから日時を変える。本物の戦績・設定には書き込まず、
 ゲームの画面も写さない。ウィンドウは画面に出さずに描く（ゲーム中に実行してもフォーカスを奪わない）
@@ -29,7 +29,7 @@ from svwb.gui.main_window import MainWindow  # noqa: E402
 from svwb.gui.settings_dialog import SettingsDialog  # noqa: E402
 
 REAL_DB = ROOT / "app" / "data" / "matches.db"
-OUT = ROOT / "配布用" / "booth"
+OUT = ROOT / "docs" / "screenshots"
 SHIFT = timedelta(days=-3, hours=-4)  # 全試合を同じだけずらす（順番と間隔はそのまま）。最後の試合が 11-01 になる
 CUTOFF = "2026-11-05 02:38:41"  # 撮り直しても写る試合が変わらないよう、ここまでの戦績だけ使う
 FMT = "%Y-%m-%d %H:%M:%S"
@@ -93,16 +93,18 @@ def main():
 
         tabs = win.stats.parentWidget().parentWidget()
         tabs.setCurrentWidget(win.stats)
-        shoot(win, "1_統計.png", (1100, 900))
+        shoot(win, "1_stats.png", (1100, 900))
+        tabs.setCurrentWidget(win.matchup)
+        shoot(win, "2_matchup.png", (1100, 800))
         tabs.setCurrentWidget(win.history)
-        shoot(win, "2_履歴.png", (1100, 860))
+        shoot(win, "3_history.png", (1100, 860))
 
         dlg = MatchDialog(win, win.known_decks(), db.matches()[0])
-        shoot(dlg, "3_編集.png", (460, 0))
+        shoot(dlg, "4_edit.png", (460, 0))
         dlg.reject()
 
         sd = SettingsDialog(win, settings, db)
-        shoot(sd, "4_設定.png", (620, 0))
+        shoot(sd, "5_settings.png", (620, 0))
         sd.reject()
 
         wins = sum(r["result"] == "win" for r in rows)
