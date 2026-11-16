@@ -15,6 +15,7 @@ if exist "%STAGE%" rmdir /s /q "%STAGE%"
 if not exist release mkdir release
 robocopy "app" "%OUT%" /E /XD data /NFL /NDL /NJH /NJS /NP
 copy /y "配布用\はじめにお読みください.txt" "%OUT%\" >nul
+copy /y "LICENSE" "%OUT%\LICENSE.txt" >nul
 robocopy "配布用\licenses" "%OUT%\licenses" /E /NFL /NDL /NJH /NJS /NP >nul
 powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\SVWB Tracker' -DestinationPath 'release\SVWB-Tracker-%VERSION%.zip' -Force"
 echo.
