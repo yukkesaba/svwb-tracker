@@ -31,7 +31,7 @@ OCR_INTERVAL = 0.4        # リザルト読み取りの間隔（秒）
 VS_CONFIRM = 2            # VS 画面の判定が何回続けて同じなら採用するか
 MIN_SUMMARY_READS = 3     # サマリー画面を最低何回読んで多数決するか
 SAME_MATCH_SEC = 6 * 3600 # この時間内に同じ指紋の記録が来たら同じ試合とみなす
-VOTED_FIELDS = ("cr", "cr_change", "mp_gained", "rank", "format")
+VOTED_FIELDS = ("cr", "cr_change", "mp_gained", "mp_total", "rank", "format")
 OPP_LOOKBACK = 8.0        # 先攻/後攻が確定した時点から、この秒数前までの相手クラス読み取りを使う
 OPP_GRACE = 6.0           # 確定後もこの秒数は相手クラスを読み続ける
 DIM_WEIGHT = 0.1          # 暗い画面（マッチング中）で読んだデッキ名の票の重さ
@@ -213,6 +213,8 @@ class MatchTracker:
         if info.cr_change is not None:
             # ランクマッチでは勝てば増え、負ければ減る。符号の読み落としを直す
             info.cr_change = abs(info.cr_change) * (1 if self.result == "win" else -1)
+        if info.mp_gained is None:
+            info.mp_gained = info.mp_total  # サマリー画面を見る前に次へ進んだとき
         if all(getattr(info, f) is None for f in VOTED_FIELDS):
             # ランクも MP も読めない＝ランクマッチのリザルトではない（ルームマッチや誤検出）
             log.info("ランクマッチのリザルトではないので記録しません (デッキ候補 %s)", dict(self._deck_votes))

@@ -80,16 +80,41 @@ class VsScreenDetector:
         return None
 
 
+# 日本語 OCR はクラス名の飾り文字を決まった形で読み違える（「エルフ」→「工丿しフ」）
+_CLASS_FIXES = [("丿し", "ル"), ("ノし", "ル"), ("丿", "ル"), ("工", "エ"), ("ェ", "エ"), ("八", "ル"), ("口", "ロ"), ("卜", "ト")]
+
+
+def _class_of(text):
+    """読めた1行を7クラスのどれかに寄せる。(クラス, 近さ)"""
+    text = text.strip("・、。-ー")
+    for a, b in _CLASS_FIXES:
+        text = text.replace(a, b)
+    best, best_ratio = None, 0.5
+    for c in CLASSES:
+        r = 1.0 if c in text else difflib.SequenceMatcher(None, text, c).ratio()
+        if r > best_ratio:
+            best, best_ratio = c, r
+    return best, best_ratio
+
+
+def _class_variants(crop):
+    """読み方を変えた画像を順に返す。エンブレムの光が文字に重なると、そのままでは読めないことがある"""
+    yield crop, 1.5
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    white = (hsv[..., 2] > 190) & (hsv[..., 1] < 70)  # 白い文字だけ残して白黒反転
+    yield (~white).astype("uint8") * 255, 3
+    yield _gray(crop), 3
+
+
 def read_opponent_class(ocr, frame):
     """VS 画面右側のクラス名を OCR して、7クラスのどれかに寄せる"""
     x, y, w, h = OPP_CLASS_ROI
     best, best_ratio = None, 0.5
-    for line in ocr.lines(frame[y:y + h, x:x + w], scale=1.5):
-        text = line.text.strip("・、。-ー")
-        for c in CLASSES:
-            r = difflib.SequenceMatcher(None, text, c).ratio()
-            if c in text:
-                r = 1.0
+    for img, scale in _class_variants(frame[y:y + h, x:x + w]):
+        for line in ocr.lines(img, scale=scale):
+            c, r = _class_of(line.text)
             if r > best_ratio:
                 best, best_ratio = c, r
+        if best_ratio >= 0.99:  # はっきり読めたら残りの読み方は試さない
+            break
     return best

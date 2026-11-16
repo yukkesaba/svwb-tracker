@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from svwb.config import Settings  # noqa: E402
 from svwb.ocr import Ocr  # noqa: E402
-from svwb.result_reader import clean_deck_text, match_known_deck, parse_panel  # noqa: E402
+from svwb.result_reader import clean_deck_text, match_known_deck, parse_panel, read_result  # noqa: E402
 from svwb.screens import ResultScreenDetector, VsScreenDetector, read_opponent_class  # noqa: E402
 from svwb.tracker import MatchTracker, State  # noqa: E402
 
@@ -62,6 +62,18 @@ def test_win_breakdown_then_summary():
     run(tr, [breakdown] * 3 + [summary] * 6)
     rec = recs[0][0]
     assert rec["result"] == "win" and rec["cr_change"] == 16 and rec["mp_gained"] == 173, rec
+
+
+def test_mp_from_breakdown_when_summary_not_seen():
+    """2026-11 の不具合: MP内訳画面だけ見てすぐ次へ進むと、獲得MP が空になっていた"""
+    breakdown = load("win_20260504_021153")
+    lobby = load("win_20260303_020313")
+    recs = []
+    tr = make_tracker(recs)
+    run(tr, [breakdown] * 10 + [lobby] * 14)
+    assert len(recs) == 1 and recs[0][0]["mp_gained"] == 218, [r for r, _ in recs]
+    # 内訳の行数が違って「TOTAL」の字が読めない画面
+    assert read_result(OCR, cv2.imread(str(FIXTURES / "win_20260927_223014.jpg"))).mp_total == 173
 
 
 def test_no_double_record_across_breakdown_and_summary():
@@ -140,6 +152,12 @@ def test_vs_screen_turn_and_class():
     # リザルト画面やロビーでは反応しない
     assert vs.detect(load("loss_20260504_022642")) is None
     assert vs.detect(load("win_20260303_020313")) is None
+
+
+def test_elf_class_read_through_emblem_glow():
+    """2026-10〜11 の不具合: 相手がエルフのときだけ「工丿しフ」と読まれてクラスが空になっていた"""
+    for name in ("vs_elf_unread_1", "vs_elf_unread_2", "vs_elf_unread_3", "vs_elf_unread_4"):
+        assert read_opponent_class(OCR, fixture(name)) == "エルフ", name
 
 
 def test_full_flow_vs_then_result():
@@ -360,6 +378,9 @@ def test_parse_panel_signs():
     lines = [OcrLine("変動CR", 578, 277, 100, 30), OcrLine("ー14", 808, 280, 50, 30), OcrLine("CR1752", 700, 335, 170, 35)]
     info = parse_panel(lines)
     assert info.cr == 1752 and info.cr_change == -14
+    # 2026-11 の不具合: (i) アイコンを塗りつぶしきれず +218 が +2181 と記録された
+    assert parse_panel([OcrLine("獲得MP+2181", 500, 120, 200, 30)]).mp_gained == 218
+    assert parse_panel([OcrLine("獲得MP+173", 500, 120, 200, 30)]).mp_gained == 173
 
 
 if __name__ == "__main__":

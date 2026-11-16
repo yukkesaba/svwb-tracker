@@ -25,6 +25,7 @@ class ResultInfo:
     cr: int = None
     cr_change: int = None
     mp_gained: int = None
+    mp_total: int = None  # MP内訳画面の TOTAL（サマリー画面を見られなかったときの獲得MP）
     rank: str = None
     format: str = None
     deck: str = None
@@ -65,7 +66,7 @@ def parse_panel(lines):
                 info.cr_change = _signed(m.group(1), m.group(2))
         m = re.search(r"MP\+(\d{1,4})$", t)
         if m and info.mp_gained is None and ln.y < 200:
-            info.mp_gained = int(m.group(1))
+            info.mp_gained = _mp_value(m.group(1))
         m = re.fullmatch(r"(Grand)?Master(\d{1,2})", t)
         if m and info.rank is None:
             info.rank = ("Grand Master " if m.group(1) else "Master ") + m.group(2)
@@ -83,6 +84,7 @@ def parse_panel(lines):
                 m = re.fullmatch(rf"([+{MINUS}])(\d{{1,3}})", ln.text)
                 if m:
                     info.cr_change = _signed(m.group(1), m.group(2))
+    info.mp_total = _breakdown_total(lines)
     if info.cr_change is not None and abs(info.cr_change) > 100:
         info.cr_change = None
     # MP内訳画面の CR は試合前の値のまま（数え上げ演出の途中）のことがあるので、
@@ -90,6 +92,30 @@ def parse_panel(lines):
     if change_label is not None:
         info.cr = cr
     return info
+
+
+def _mp_value(digits):
+    """1試合の獲得MP は多くても数百。4桁は右の (i) アイコンを「1」と読んだもの（+218 → +2181）"""
+    if len(digits) <= 3:
+        return int(digits)
+    return int(digits[:-1]) if digits.endswith("1") else None
+
+
+def _breakdown_total(lines):
+    """MP内訳画面の TOTAL の値。内訳の行数で位置が変わり、「TOTAL」の字が読めないこともある"""
+    plus = [(ln, int(m.group(1))) for ln in lines if (m := re.fullmatch(r"\+(\d{1,4})", ln.text))]
+    label = next((ln for ln in lines if ln.text.upper() == "TOTAL"), None)
+    if label is not None:
+        for ln, v in plus:
+            if abs((ln.y + ln.h / 2) - (label.y + label.h / 2)) < 20:
+                return v
+        return None
+    # 「ランク」より上に「+100」「+30」…と並んでいれば内訳画面。その一番下が TOTAL
+    rank = next((ln for ln in lines if ln.text == "ランク"), None)
+    if rank is None or rank.y < 300:
+        return None
+    above = sorted((p for p in plus if p[0].y < rank.y), key=lambda p: p[0].y)
+    return above[-1][1] if len(above) >= 3 else None
 
 
 def _signed(sign, digits):
