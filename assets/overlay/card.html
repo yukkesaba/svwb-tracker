@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>SVWB Tracker カード</title>
+<style>
+/* 色や大きさは OBS のブラウザソースの「カスタム CSS」で :root { --win: #22c55e; } のように変えられます */
+:root {
+  --bg: rgba(12, 14, 20, 0.85);
+  --line: rgba(255, 255, 255, 0.14);
+  --track: rgba(255, 255, 255, 0.12);
+  --text: #ffffff;
+  --sub: #9aa3b5;
+  --win: #4ade80;
+  --loss: #f87171;
+  --streak: #fbbf24;
+  --radius: 16px;
+  --font: "Yu Gothic UI", "Meiryo", sans-serif;
+}
+html, body { margin: 0; background: transparent; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); padding: 8px; }
+.card { width: 260px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--sub); }
+.deck { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.main { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.ring circle { fill: none; stroke-width: 8; }
+.ring .track { stroke: var(--track); }
+.ring .bar { stroke: var(--text); stroke-linecap: round; transition: stroke-dasharray 0.8s ease-out; }
+.ring .bar.win { stroke: var(--win); }
+.ring .bar.loss { stroke: var(--loss); }
+.ring text { fill: var(--text); font-size: 17px; font-weight: 700; font-family: var(--font); }
+.wl { font-size: 27px; font-weight: 700; font-variant-numeric: tabular-nums; display: inline-block; white-space: nowrap; }
+.streak { font-size: 14px; color: var(--streak); font-weight: 700; min-height: 20px; }
+.row { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--line); font-size: 14px; }
+.row .k { color: var(--sub); }
+.win { color: var(--win); }
+.loss { color: var(--loss); }
+.marks { display: flex; gap: 4px; margin-top: 10px; height: 6px; }
+.mark { flex: 1; border-radius: 3px; }
+.mark.win { background: var(--win); }
+.mark.loss { background: var(--loss); }
+.pulse { animation: pulse 0.8s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.15); } 100% { transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head"><span>今日の戦績</span><span class="deck" id="deck"></span></div>
+  <div class="main">
+    <svg class="ring" width="72" height="72" viewBox="0 0 72 72">
+      <circle class="track" cx="36" cy="36" r="30"></circle>
+      <circle class="bar" id="ring" cx="36" cy="36" r="30" stroke-dasharray="0 999" transform="rotate(-90 36 36)"></circle>
+      <text id="rate" x="36" y="42" text-anchor="middle">-</text>
+    </svg>
+    <div>
+      <div class="wl" id="wl"><span id="wins">0</span>勝 <span id="losses">0</span>敗</div>
+      <div class="streak" id="streak"></div>
+    </div>
+  </div>
+  <div class="row cr"><span class="k">CR</span><span><span id="cr">-</span> <span id="crnet"></span></span></div>
+  <div class="marks" id="marks"></div>
+</div>
+<script src="overlay.js"></script>
+<script>
+var CIRC = 2 * Math.PI * 30;
+SVWB.onData(function (d, changed) {
+  SVWB.text("deck", d.deck || "");
+  SVWB.text("wins", d.wins);
+  SVWB.text("losses", d.losses);
+  SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");
+  var len = d.rate === null ? 0 : CIRC * d.rate / 100;
+  document.getElementById("ring").setAttribute("stroke-dasharray", len.toFixed(1) + " 999");
+  SVWB.setClass("ring", "bar", SVWB.rateClass(d.rate));
+  SVWB.text("streak", SVWB.streakText(d));
+  SVWB.show(".cr", d.cr !== null);
+  SVWB.text("cr", d.cr === null ? "-" : d.cr);
+  SVWB.text("crnet", d.cr_net === null ? "" : SVWB.signed(d.cr_net));
+  SVWB.setClass("crnet", "", d.cr_net > 0 ? "win" : d.cr_net < 0 ? "loss" : "");
+  SVWB.marks("marks", d.recent, "mark");
+  if (changed) SVWB.pulse("wl");
+});
+</script>
+</body>
+</html>

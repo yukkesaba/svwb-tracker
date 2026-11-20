@@ -206,7 +206,9 @@ class MainWindow(QMainWindow):
 
     def _write_obs(self):
         if self.settings.obs_enabled:
-            obs.write(obs.render(self.settings.obs_template, self.db.matches(since=period_start(0))))
+            rows = self.db.matches(since=period_start(0))
+            obs.write(obs.render(self.settings.obs_template, rows))
+            obs.write_overlay(rows)
 
     def _show_last(self, m):
         self.last_id = m["id"] if m else None

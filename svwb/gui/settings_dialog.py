@@ -42,10 +42,11 @@ class SettingsDialog(QDialog):
         self.shot_limit.setSpecialValueText("無制限")
         self.shot_limit.setValue(settings.screenshot_limit)
         self.shot_limit.setToolTip("これを超えたら古いリザルト画面から消します（戦績は消えません）。0 で無制限")
-        self.obs = QCheckBox("配信用テキストを書き出す（OBS のテキストソース用）")
+        self.obs = QCheckBox("配信用の表示を書き出す（OBS 用）")
         self.obs.setChecked(settings.obs_enabled)
-        self.obs.setToolTip("今日の戦績を data フォルダの obs\\today.txt に書き出します。\n"
-                            "OBS のテキストソースで「ファイルから読み取り」に指定してください")
+        self.obs.setToolTip("今日の戦績を data フォルダの obs に書き出します。\n"
+                            "bar.html / card.html / minimal.html … OBS のブラウザソース（ローカルファイル）用\n"
+                            "today.txt … OBS のテキストソース（ファイルから読み取り）用")
         self.obs_template = QLineEdit(settings.obs_template)
         self.obs_template.setToolTip("使える名前: " + obs.VARIABLES)
         obs_btn = QPushButton("配信用フォルダを開く")

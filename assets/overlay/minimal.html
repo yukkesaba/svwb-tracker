@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>SVWB Tracker ミニマル</title>
+<style>
+/* 色や大きさは OBS のブラウザソースの「カスタム CSS」で :root { --size: 56px; } のように変えられます */
+:root {
+  --text: #ffffff;
+  --sub: #e5e7eb;
+  --win: #4ade80;
+  --loss: #f87171;
+  --streak: #fbbf24;
+  --edge: #000000;
+  --size: 48px;
+  --font: "Yu Gothic UI", "Meiryo", sans-serif;
+}
+html, body { margin: 0; background: transparent; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); padding: 8px 12px; font-weight: 700; white-space: nowrap; }
+/* 縁取り: どんな背景の上でも読めるように */
+.edge { text-shadow: 2px 0 0 var(--edge), -2px 0 0 var(--edge), 0 2px 0 var(--edge), 0 -2px 0 var(--edge),
+                     2px 2px 0 var(--edge), -2px -2px 0 var(--edge), 2px -2px 0 var(--edge), -2px 2px 0 var(--edge),
+                     0 0 8px rgba(0, 0, 0, 0.6); }
+.big { font-size: var(--size); line-height: 1.1; font-variant-numeric: tabular-nums; display: inline-block; transform-origin: left center; }
+.sub { font-size: calc(var(--size) * 0.38); color: var(--sub); margin-top: 2px; }
+.streak { font-size: calc(var(--size) * 0.34); color: var(--streak); margin-top: 2px; min-height: 1em; }
+.win { color: var(--win); }
+.loss { color: var(--loss); }
+.pulse { animation: pulse 0.8s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.15); } 100% { transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="big edge" id="wl"><span id="wins">0</span>-<span id="losses">0</span></div>
+<div class="sub edge">勝率 <span id="rate">-</span><span class="cr">　CR <span id="crnet"></span></span></div>
+<div class="streak edge" id="streak"></div>
+<script src="overlay.js"></script>
+<script>
+SVWB.onData(function (d, changed) {
+  SVWB.text("wins", d.wins);
+  SVWB.text("losses", d.losses);
+  SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");
+  SVWB.setClass("rate", "", SVWB.rateClass(d.rate));
+  SVWB.show(".cr", d.cr_net !== null);
+  SVWB.text("crnet", d.cr_net === null ? "" : SVWB.signed(d.cr_net));
+  SVWB.setClass("crnet", "", d.cr_net > 0 ? "win" : d.cr_net < 0 ? "loss" : "");
+  SVWB.text("streak", SVWB.streakText(d));
+  if (changed) SVWB.pulse("wl");
+});
+</script>
+</body>
+</html>

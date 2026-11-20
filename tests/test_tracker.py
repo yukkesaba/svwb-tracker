@@ -326,6 +326,29 @@ def test_obs_text():
         assert path.read_text(encoding="utf-8") == "b"
 
 
+def test_overlay_files_and_data(tmp=None):
+    import json
+    import tempfile
+    from svwb import obs
+    rows = [{"result": "win", "cr": 1618, "cr_change": 17, "deck": "兎ビショップ"},
+            {"result": "win", "cr": 1601, "cr_change": 15, "deck": "兎ビショップ"},
+            {"result": "loss", "cr": 1586, "cr_change": -13, "deck": "兎ビショップ"}]
+    d = obs.overlay_data(rows)
+    assert d["wins"] == 2 and d["losses"] == 1 and d["rate"] == 67, d
+    assert d["streak"] == 2 and d["streak_kind"] == "win" and d["cr"] == 1618 and d["cr_net"] == 19, d
+    assert d["recent"] == ["loss", "win", "win"], d  # 右端が直前の試合
+    empty = obs.overlay_data([])
+    assert empty["rate"] is None and empty["recent"] == [] and empty["cr"] is None, empty
+    with tempfile.TemporaryDirectory() as t:
+        folder = Path(t) / "obs"
+        assert obs.write_overlay(rows, folder)
+        assert not obs.write_overlay(rows, folder)  # 変わっていなければ書かない
+        for name in obs.OVERLAY_FILES:
+            assert (folder / name).exists(), name
+        text = (folder / "data.js").read_text(encoding="utf-8")
+        assert json.loads(text.split("=", 1)[1].strip().rstrip(";")) == d
+
+
 def test_old_screenshots_pruned():
     import os
     import tempfile

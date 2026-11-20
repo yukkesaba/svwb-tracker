@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>SVWB Tracker 帯</title>
+<style>
+/* 色や大きさは OBS のブラウザソースの「カスタム CSS」で :root { --win: #22c55e; } のように変えられます */
+:root {
+  --bg: rgba(12, 14, 20, 0.82);
+  --line: rgba(255, 255, 255, 0.14);
+  --text: #ffffff;
+  --sub: #9aa3b5;
+  --win: #4ade80;
+  --loss: #f87171;
+  --streak: #fbbf24;
+  --radius: 12px;
+  --font: "Yu Gothic UI", "Meiryo", sans-serif;
+}
+html, body { margin: 0; background: transparent; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); padding: 8px; }
+.bar { display: inline-flex; align-items: center; gap: 20px; background: var(--bg); border: 1px solid var(--line);
+       border-radius: var(--radius); padding: 10px 22px; white-space: nowrap; }
+.k { font-size: 14px; color: var(--sub); }
+.v { font-size: 30px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; display: inline-block; }
+.u { font-size: 17px; color: var(--sub); font-weight: 600; }
+.sep { width: 1px; height: 42px; background: var(--line); }
+.marks { display: flex; gap: 6px; margin-top: 9px; height: 12px; align-items: center; }
+.mark { width: 12px; height: 12px; border-radius: 50%; }
+.mark.win { background: var(--win); }
+.mark.loss { background: var(--loss); }
+.win { color: var(--win); }
+.loss { color: var(--loss); }
+.streak { color: var(--streak); font-weight: 700; }
+.empty { color: var(--sub); font-size: 13px; }
+.pulse { animation: pulse 0.8s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div>
+    <div class="k">今日</div>
+    <div class="v" id="wl"><span id="wins">0</span><span class="u"> 勝 </span><span id="losses">0</span><span class="u"> 敗</span></div>
+  </div>
+  <div class="sep"></div>
+  <div>
+    <div class="k">勝率</div>
+    <div class="v" id="rate">-</div>
+  </div>
+  <div class="sep cr"></div>
+  <div class="cr">
+    <div class="k">CR</div>
+    <div class="v"><span id="cr">-</span> <span class="u" id="crnet"></span></div>
+  </div>
+  <div class="sep"></div>
+  <div>
+    <div class="k">直近 <span id="n">0</span> 戦　<span class="streak" id="streak"></span></div>
+    <div class="marks" id="marks"><span class="empty">まだ試合がありません</span></div>
+  </div>
+</div>
+<script src="overlay.js"></script>
+<script>
+SVWB.onData(function (d, changed) {
+  SVWB.text("wins", d.wins);
+  SVWB.text("losses", d.losses);
+  SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");
+  SVWB.setClass("rate", "v", SVWB.rateClass(d.rate));
+  SVWB.show(".cr", d.cr !== null);
+  SVWB.text("cr", d.cr === null ? "-" : d.cr);
+  SVWB.text("crnet", d.cr_net === null ? "" : SVWB.signed(d.cr_net));
+  SVWB.setClass("crnet", "u", d.cr_net > 0 ? "win" : d.cr_net < 0 ? "loss" : "");
+  SVWB.text("n", d.recent.length);
+  SVWB.text("streak", SVWB.streakText(d));
+  if (d.recent.length) SVWB.marks("marks", d.recent, "mark");
+  if (changed) SVWB.pulse("wl");
+});
+</script>
+</body>
+</html>
