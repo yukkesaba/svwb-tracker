@@ -33,11 +33,11 @@ body { font-family: var(--font); color: var(--text); padding: 8px; }
 .win { color: var(--win); }
 .loss { color: var(--loss); }
 .streak { color: var(--streak); font-weight: 700; }
-/* 数字の桁が増えても帯の幅が変わらないように */
-#wl { min-width: 150px; }
-#rate { min-width: 74px; }
-.crv { min-width: 118px; }
-.recent { min-width: 184px; }
+/* 勝敗 2 桁・CR 4 桁・増減 3 桁まで帯の幅が変わらないように */
+#wl { min-width: 108px; }
+#rate { min-width: 72px; }
+.crv { min-width: 104px; }
+.recent { min-width: 176px; }
 .pulse { animation: pulse 0.8s ease-out; }
 @keyframes pulse { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 </style>
