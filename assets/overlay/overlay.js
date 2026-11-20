@@ -34,13 +34,15 @@
       return d.streak + (d.streak_kind === "win" ? "連勝中" : "連敗中");
     },
     signed: function (v) { return v > 0 ? "+" + v : String(v); },
-    marks: function (id, recent, cls) {
+    // slots を渡すと、試合が足りない分は空の印（none）で埋めて、幅を常に同じにする
+    marks: function (id, recent, cls, slots) {
       var box = el(id);
       if (!box) return;
       box.innerHTML = "";
-      for (var i = 0; i < recent.length; i++) {
+      var n = Math.max(slots || 0, recent.length);
+      for (var i = 0; i < n; i++) {
         var s = document.createElement("span");
-        s.className = cls + " " + recent[i];
+        s.className = cls + " " + (i < recent.length ? recent[i] : "none");
         box.appendChild(s);
       }
     },
