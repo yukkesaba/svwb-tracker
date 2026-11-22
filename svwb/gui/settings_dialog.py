@@ -47,6 +47,13 @@ class SettingsDialog(QDialog):
         self.obs.setToolTip("今日の戦績を data フォルダの obs に書き出します。\n"
                             "bar.html / card.html / minimal.html … OBS のブラウザソース（ローカルファイル）用\n"
                             "today.txt … OBS のテキストソース（ファイルから読み取り）用")
+        self.obs_by_deck = QCheckBox("今使っているデッキの戦績だけを出す")
+        self.obs_by_deck.setChecked(settings.obs_by_deck)
+        self.obs_by_deck.setToolTip("オンにすると、直前の試合のデッキで今日戦った分だけを数えます。
+"
+                                    "デッキを替えて試合をすると、そのデッキの数字に切り替わります。
+"
+                                    "オフなら今日の全試合を数えます")
         self.obs_template = QLineEdit(settings.obs_template)
         self.obs_template.setToolTip("使える名前: " + obs.VARIABLES)
         obs_btn = QPushButton("配信用フォルダを開く")
@@ -68,6 +75,7 @@ class SettingsDialog(QDialog):
         form.addRow("残すリザルト画面", self.shot_limit)
         form.addRow("", self.notify)
         form.addRow("", self.obs)
+        form.addRow("", self.obs_by_deck)
         form.addRow("配信用テキストの書式", self.obs_template)
         form.addRow("", obs_btn)
         form.addRow("登録デッキ名", self.decks)
@@ -91,6 +99,7 @@ class SettingsDialog(QDialog):
         s.notify = self.notify.isChecked()
         s.screenshot_limit = self.shot_limit.value()
         s.obs_enabled = self.obs.isChecked()
+        s.obs_by_deck = self.obs_by_deck.isChecked()
         s.obs_template = self.obs_template.text() or obs.DEFAULT_TEMPLATE
         names = []
         for line in self.decks.toPlainText().splitlines():

@@ -22,7 +22,7 @@ from .widgets import panel
 log = logging.getLogger(__name__)
 AUTO_DECK = "（自動：画面から読み取り）"
 # 変えても監視を止めなくてよい設定（監視を止めると試合中の先攻後攻・相手クラスが消える）
-LIVE_SETTINGS = {"notify", "screenshot_limit", "obs_enabled", "obs_template"}
+LIVE_SETTINGS = {"notify", "screenshot_limit", "obs_enabled", "obs_template", "obs_by_deck"}
 
 
 def app_icon():
@@ -207,8 +207,10 @@ class MainWindow(QMainWindow):
     def _write_obs(self):
         if self.settings.obs_enabled:
             rows = self.db.matches(since=period_start(0))
+            if self.settings.obs_by_deck:
+                rows = obs.same_deck(rows)
             obs.write(obs.render(self.settings.obs_template, rows))
-            obs.write_overlay(rows)
+            obs.write_overlay(rows, by_deck=self.settings.obs_by_deck)
 
     def _show_last(self, m):
         self.last_id = m["id"] if m else None

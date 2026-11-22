@@ -46,7 +46,7 @@ body { font-family: var(--font); color: var(--text); padding: 8px; }
 </head>
 <body>
 <div class="card">
-  <div class="head"><span>今日の戦績</span><span class="deck" id="deck"></span></div>
+  <div class="head"><span id="title">今日の戦績</span><span class="deck" id="deck"></span></div>
   <div class="main">
     <svg class="ring" width="72" height="72" viewBox="0 0 72 72">
       <circle class="track" cx="36" cy="36" r="30"></circle>
@@ -66,6 +66,7 @@ body { font-family: var(--font); color: var(--text); padding: 8px; }
 var CIRC = 2 * Math.PI * 30;
 SVWB.onData(function (d, changed) {
   SVWB.text("deck", d.deck || "");
+  SVWB.text("title", d.by_deck ? "今日のデッキ戦績" : "今日の戦績");
   SVWB.text("wins", d.wins);
   SVWB.text("losses", d.losses);
   SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");

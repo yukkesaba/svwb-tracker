@@ -337,6 +337,11 @@ def test_overlay_files_and_data(tmp=None):
     assert d["wins"] == 2 and d["losses"] == 1 and d["rate"] == 67, d
     assert d["streak"] == 2 and d["streak_kind"] == "win" and d["cr"] == 1618 and d["cr_net"] == 19, d
     assert d["recent"] == ["loss", "win", "win"], d  # 右端が直前の試合
+    mixed = [{"result": "loss", "deck": "旗"}] + rows
+    only = obs.same_deck(mixed)
+    assert only == mixed[:1], only  # デッキを替えたら、そのデッキだけで数える
+    assert obs.same_deck(rows) == rows and obs.same_deck([]) == []
+    assert obs.overlay_data(only, by_deck=True)["by_deck"] is True
     empty = obs.overlay_data([])
     assert empty["rate"] is None and empty["recent"] == [] and empty["cr"] is None, empty
     with tempfile.TemporaryDirectory() as t:

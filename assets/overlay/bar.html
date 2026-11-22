@@ -38,14 +38,17 @@ body { font-family: var(--font); color: var(--text); padding: 8px; }
 #rate { min-width: 72px; }
 .crv { min-width: 104px; }
 .recent { min-width: 176px; }
+/* デッキごとの表示のとき: 左上にデッキ名。長い名前は … で切る（幅は固定） */
+.bar.deckmode #wl { min-width: 150px; }
+#label { display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .pulse { animation: pulse 0.8s ease-out; }
 @keyframes pulse { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
-<div class="bar">
+<div class="bar" id="bar">
   <div>
-    <div class="k">今日</div>
+    <div class="k" id="label">今日</div>
     <div class="v" id="wl"><span id="wins">0</span><span class="u"> 勝 </span><span id="losses">0</span><span class="u"> 敗</span></div>
   </div>
   <div class="sep"></div>
@@ -67,6 +70,8 @@ body { font-family: var(--font); color: var(--text); padding: 8px; }
 <script src="overlay.js"></script>
 <script>
 SVWB.onData(function (d, changed) {
+  SVWB.setClass("bar", "bar", d.by_deck ? "deckmode" : "");
+  SVWB.text("label", d.by_deck ? (d.deck || "デッキ不明") : "今日");
   SVWB.text("wins", d.wins);
   SVWB.text("losses", d.losses);
   SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");

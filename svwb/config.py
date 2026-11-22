@@ -41,6 +41,7 @@ class Settings:
     start_minimized: bool = False
     obs_enabled: bool = False          # 今日の戦績を data/obs/today.txt に書き出す
     obs_template: str = "{wins}勝 {losses}敗 勝率{rate}%"
+    obs_by_deck: bool = False          # 配信用の数字を、直前の試合のデッキだけで数える
 
     @classmethod
     def load(cls):

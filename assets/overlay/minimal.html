@@ -31,12 +31,15 @@ body { font-family: var(--font); color: var(--text); padding: 8px 12px; font-wei
 </style>
 </head>
 <body>
+<div class="sub edge" id="deck"></div>
 <div class="big edge" id="wl"><span id="wins">0</span>-<span id="losses">0</span></div>
 <div class="sub edge">勝率 <span id="rate">-</span><span class="cr">　CR <span id="crnet"></span></span></div>
 <div class="streak edge" id="streak"></div>
 <script src="overlay.js"></script>
 <script>
 SVWB.onData(function (d, changed) {
+  SVWB.show("#deck", d.by_deck);
+  SVWB.text("deck", d.deck || "デッキ不明");
   SVWB.text("wins", d.wins);
   SVWB.text("losses", d.losses);
   SVWB.text("rate", d.rate === null ? "-" : d.rate + "%");

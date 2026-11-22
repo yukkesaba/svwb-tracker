@@ -46,8 +46,16 @@ def render(template, rows):
     return text.replace("\\n", "\n")
 
 
-def overlay_data(rows):
-    """配信用表示に渡す値。rows は今日の戦績（新しい順）"""
+def same_deck(rows):
+    """直前の試合と同じデッキの試合だけにする（デッキを替えたら数字も切り替わる）"""
+    if not rows:
+        return rows
+    deck = rows[0].get("deck")
+    return [r for r in rows if r.get("deck") == deck]
+
+
+def overlay_data(rows, by_deck=False):
+    """配信用表示に渡す値。rows は今日の戦績（新しい順）。by_deck なら rows はデッキで絞ったもの"""
     wins = sum(r["result"] == "win" for r in rows)
     streak = 0
     for r in rows:
@@ -65,10 +73,11 @@ def overlay_data(rows):
         "cr_net": sum(changes) if changes else None,
         "deck": (rows[0].get("deck") or None) if rows else None,
         "recent": [r["result"] for r in rows[:RECENT]][::-1],  # 古い順（右端が直前の試合）
+        "by_deck": by_deck,
     }
 
 
-def write_overlay(rows, folder=None):
+def write_overlay(rows, folder=None, by_deck=False):
     """表示用の HTML を最新にして、data.js を書く。書いたら True"""
     folder = folder or OBS_PATH.parent
     try:
@@ -81,7 +90,7 @@ def write_overlay(rows, folder=None):
     except OSError as e:
         log.warning("配信用表示を書き出せませんでした: %s", e)
         return False
-    text = "window.SVWB_DATA = " + json.dumps(overlay_data(rows), ensure_ascii=False) + ";\n"
+    text = "window.SVWB_DATA = " + json.dumps(overlay_data(rows, by_deck), ensure_ascii=False) + ";\n"
     return write(text, folder / "data.js")
 
 
