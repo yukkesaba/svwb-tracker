@@ -265,7 +265,7 @@ def read_result(ocr, frame, known_decks=()):
     info.deck_dim = float(np.percentile(band, 99.5)) < DIM_LEVEL
     if cands:
         info.deck_raw = cands[0]
-        # 「Masterレベル50」などデッキ名でない帯（MP内訳画面）やグループ名は捨てる
-        if not re.search(r"Master|レベ|MP", cands[0]) and not is_group_name(cands[0], group):
+        # 「Masterレベル50」などデッキ名でない帯（MP内訳画面）やグループ名は捨てる。小さいウィンドウだと「Mastcrレヘル」と崩れる
+        if not re.search(r"Mas|レベ|レヘ|MP", cands[0]) and not is_group_name(cands[0], group):
             info.deck = match_known_deck(cands, known_decks) or cands[0]
     return info
