@@ -49,10 +49,8 @@ class SettingsDialog(QDialog):
                             "today.txt … OBS のテキストソース（ファイルから読み取り）用")
         self.obs_by_deck = QCheckBox("今使っているデッキの戦績だけを出す")
         self.obs_by_deck.setChecked(settings.obs_by_deck)
-        self.obs_by_deck.setToolTip("オンにすると、直前の試合のデッキで今日戦った分だけを数えます。
-"
-                                    "デッキを替えて試合をすると、そのデッキの数字に切り替わります。
-"
+        self.obs_by_deck.setToolTip("オンにすると、直前の試合のデッキで今日戦った分だけを数えます。\n"
+                                    "デッキを替えて試合をすると、そのデッキの数字に切り替わります。\n"
                                     "オフなら今日の全試合を数えます")
         self.obs_template = QLineEdit(settings.obs_template)
         self.obs_template.setToolTip("使える名前: " + obs.VARIABLES)

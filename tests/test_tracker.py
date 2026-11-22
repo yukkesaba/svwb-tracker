@@ -354,6 +354,13 @@ def test_overlay_files_and_data(tmp=None):
         assert json.loads(text.split("=", 1)[1].strip().rstrip(";")) == d
 
 
+def test_all_sources_compile():
+    # GUI はテストで読み込まないので、書き間違いで起動できなくなるのをここで防ぐ
+    import py_compile
+    for f in (Path(__file__).resolve().parent.parent / "svwb").rglob("*.py"):
+        py_compile.compile(str(f), doraise=True)
+
+
 def test_old_screenshots_pruned():
     import os
     import tempfile
