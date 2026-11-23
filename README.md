@@ -1,6 +1,6 @@
 # SVWB Tracker
 
-Steam 版 Shadowverse: Worlds Beyond のランクマッチの戦績を、自動で記録する Windows 用のツールです。\
+PC版 Shadowverse: Worlds Beyond のランクマッチの戦績を、自動で記録する Windows 用のツールです。\
 ゲームの画面を読み取って記録するだけで、ゲームの操作やデータの書き換えは一切しません。\
 非公式のファンメイドツールです。
 
