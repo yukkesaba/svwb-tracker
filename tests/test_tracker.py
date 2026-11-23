@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 from svwb.config import Settings  # noqa: E402
 from svwb.ocr import Ocr  # noqa: E402
 from svwb.result_reader import clean_deck_text, match_known_deck, parse_panel, read_result  # noqa: E402
-from svwb.screens import ResultScreenDetector, VsScreenDetector, read_opponent_class  # noqa: E402
+from svwb.screens import ResultScreenDetector, VsScreenDetector, read_my_class, read_opponent_class  # noqa: E402
 from svwb.tracker import MatchTracker, State  # noqa: E402
 
 SHOTS = ROOT / "tests" / "fixtures"  # 旧版のスクショから必要なものだけコピー
@@ -160,6 +160,49 @@ def test_elf_class_read_through_emblem_glow():
         assert read_opponent_class(OCR, fixture(name)) == "エルフ", name
 
 
+def test_my_class_read_from_vs():
+    for name, mine in (("vs_second_vs_nightmare", "ナイトメア"), ("vs_second_vs_nemesis", "ナイトメア"),
+                       ("vs_first_vs_witch", "エルフ"), ("vs_elf_unread_1", "ナイトメア"),
+                       ("vs_elf_unread_2", "ビショップ"), ("vs_elf_unread_3", "エルフ"),
+                       ("vs_elf_unread_4", "ビショップ")):
+        assert read_my_class(OCR, fixture(name)) == mine, name
+    # 自分のクラスだけ読めなくても、先攻後攻と相手クラスは入り、読めない画面を1回だけ残す
+    from svwb.screens import MY_CLASS_ROI
+    vs = fixture("vs_second_vs_nemesis")
+    x, y, w, h = MY_CLASS_ROI
+    hidden = vs.copy()
+    hidden[y:y + h, x:x + w] = 0
+    other = load("win_20260303_020313")
+    tr = make_tracker([])
+    saved = []
+    tr.on_debug = lambda name, frame: saved.append(name)
+    run_dt(tr, [other] * 4 + [hidden] * 12 + [other] * 40)
+    assert (tr.turn, tr.opponent, tr.vs.my_class) == ("second", "ネメシス", None)
+    assert saved == ["vs_my_class_unread"], saved
+
+
+def test_old_db_gets_my_class_column():
+    import sqlite3
+    import tempfile
+    from svwb.db import SCHEMA, Database
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "m.db"
+        old = sqlite3.connect(str(p))
+        old.executescript("\n".join(x for x in SCHEMA.splitlines() if "my_class" not in x))
+        old.execute("INSERT INTO matches (played_at, result, deck) VALUES ('2026-11-01 00:00:00', 'win', 'ランプ')")
+        old.commit()
+        old.close()
+        for _ in range(2):  # 2回開いても同じ
+            db = Database(p)
+            assert db.matches()[0]["my_class"] is None and db.seen_classes() == {}
+            db.close()
+        db = Database(p)
+        for c in ("ドラゴン", "ドラゴン", "ネメシス"):
+            db.add(result="win", deck="ランプ", my_class=c)
+        assert db.seen_classes() == {"ランプ": "ドラゴン"}
+        db.close()
+
+
 def test_full_flow_vs_then_result():
     """VS 画面 → 対戦（別の画面）→ リザルト の順で、先攻/後攻と相手クラスが記録に入る"""
     vs = fixture("vs_second_vs_nemesis")
@@ -174,6 +217,7 @@ def test_full_flow_vs_then_result():
     run(tr, [other] * 5 + [loss] * 12 + [other] * 4)
     rec = recs[0][0]
     assert rec["turn_order"] == "second" and rec["opponent"] == "ネメシス", rec
+    assert rec["my_class"] == "ナイトメア", rec
     # 記録の日時はリザルトの時刻ではなく試合開始（VS 画面）の時刻
     assert rec["played_at"] == started.strftime("%Y-%m-%d %H:%M:%S"), (rec["played_at"], started)
     # 記録したら次の試合に持ち越さない
@@ -322,6 +366,12 @@ def test_cr_chart_split_by_class():
     assert list(g) == ["ランプ", "ウィッチ", "（未設定）"]  # CR の無い試合は数えない
     assert [r["cr"] for r in g["ウィッチ"]] == [1328, 1342]
     assert list(cr_groups(rows)) == ["ランプ", "スペルキマイラ", "ウィッチ", "（未設定）"]
+    # VS 画面で読んだクラス: その試合はデッキ名より優先、読めていない試合はデッキごとの多数で補う
+    assert deck_class("ランプ", {}, {"ランプ": "ドラゴン"}) == "ドラゴン"
+    assert deck_class("純融合ネメシス", {}, {"純融合ネメシス": "ドラゴン"}) == "ネメシス"
+    rows = [{"deck": "純融合ネメシス", "cr": 1551, "my_class": "ドラゴン"}, {"deck": "ランプ", "cr": 1532, "my_class": None},
+            {"deck": "純融合ネメシス", "cr": 1512, "my_class": None}]
+    assert {k: len(v) for k, v in cr_groups(rows, {}, {"ランプ": "ドラゴン"}).items()} == {"ドラゴン": 2, "ネメシス": 1}
 
 
 def test_obs_text():

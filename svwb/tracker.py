@@ -7,7 +7,7 @@
 リザルト画面は「MP内訳（再戦カウントダウン付き）」→「サマリー（変動CR・CR・使用デッキ）」と進み、
 切り替わりの演出で WIN / RESULT の文字が一瞬消える。消えた時間で判断しないと1試合が2回記録される。
 
-先攻・後攻と相手クラスは、対戦開始時の VS 画面から読んで「これから始まる試合」の分として持っておき、
+先攻・後攻と自分・相手のクラスは、対戦開始時の VS 画面から読んで「これから始まる試合」の分として持っておき、
 リザルト画面を検出した時点でその試合に引き渡す。リザルト読み取り中に「バトル」で次の対戦に入ることが
 あるので、どの状態でも（リザルト画面以外なら）VS 画面を見る。
 相手クラス名はバッジより数秒早く表示されるので、VS 待ちの間は先回りして読んでおき、
@@ -21,7 +21,7 @@ from enum import Enum
 
 from .db import match_signature
 from .result_reader import ResultInfo, read_result, similar_deck, snap_deck
-from .screens import read_opponent_class
+from .screens import read_my_class, read_opponent_class
 
 log = logging.getLogger(__name__)
 
@@ -44,11 +44,17 @@ class VsInfo:
     def __init__(self):
         self.turn = None
         self.opponent = None
+        self.my_class = None
         self.turn_at = None
         self.started_at = None  # 試合開始（VS 画面で先攻/後攻が確定した）時刻
         self.frame = None
         self._seen, self._streak = None, 0
         self._opp_reads = collections.deque(maxlen=64)  # (時刻, クラス名)
+        self._my_reads = collections.deque(maxlen=64)
+
+    @property
+    def complete(self):
+        return None not in (self.turn, self.opponent, self.my_class)
 
 
 class State(Enum):
@@ -227,6 +233,7 @@ class MatchTracker:
             "result": self.result,
             "turn_order": self.match_vs.turn,
             "opponent": self.match_vs.opponent,
+            "my_class": self.match_vs.my_class,
             "deck": deck,
             "cr": info.cr,
             "cr_change": info.cr_change,
@@ -251,26 +258,44 @@ class MatchTracker:
         self.match_vs = VsInfo()
         self._set_state(State.AFTER)
 
+    def _read(self, reader, frame):
+        try:
+            return reader(self.ocr, frame)
+        except Exception as e:
+            log.warning("クラス名の OCR に失敗: %s", e)
+            return None
+
+    def _vote(self, label, reads):
+        """先攻/後攻が確定する少し前からの読み取りを多数決する。読めていなければ None"""
+        recent = collections.Counter(c for t, c in reads if t >= self.vs.turn_at - OPP_LOOKBACK)
+        if not recent:
+            return None
+        best = recent.most_common(1)[0][0]
+        log.info("%s: %s （読み取り %s）", label, best, dict(recent))
+        return best
+
     def _scan_vs(self, frame, now):
-        """VS 画面を見て、次の試合の先攻/後攻と相手クラスを読む"""
+        """VS 画面を見て、次の試合の先攻/後攻と、自分・相手のクラスを読む"""
         vs = self.vs
-        if vs.turn is not None and vs.opponent is None and now - vs.turn_at > OPP_GRACE:
+        if vs.complete:
+            return  # 読み終わっている（対戦中はここで終わるので負荷は増えない）
+        if vs.turn is not None and now - vs.turn_at > OPP_GRACE:
             if not self._debug_saved:
                 self._debug_saved = True
-                log.warning("相手クラスを読めませんでした（data/debug に VS 画面を保存）")
-                self.on_debug("vs_opponent_unread", vs.frame)
+                side, name = ("相手", "vs_opponent_unread") if vs.opponent is None else ("自分の", "vs_my_class_unread")
+                log.warning("%sクラスを読めませんでした（data/debug に VS 画面を保存）", side)
+                self.on_debug(name, vs.frame)
             return
-        if vs.turn is not None and vs.opponent is not None:
-            return  # 読み終わっている（対戦中はここで終わるので負荷は増えない）
 
-        # 相手クラス名はバッジより先に出るので、VS 待ちの間は毎回読んでおく（1回 約6ms）
-        try:
-            cls = read_opponent_class(self.ocr, frame)
-        except Exception as e:
-            log.warning("相手クラスの OCR に失敗: %s", e)
-            cls = None
+        # クラス名はバッジより先に出るので、VS 待ちの間は相手側を毎回読んでおく（1回 約6ms）。
+        # 自分側は VS 画面らしいとき（相手側が読めた / バッジが出た）だけ読む
+        cls = self._read(read_opponent_class, frame) if vs.opponent is None else None
         if cls:
             vs._opp_reads.append((now, cls))
+        if vs.my_class is None and (cls or vs.turn is not None):
+            mine = self._read(read_my_class, frame)
+            if mine:
+                vs._my_reads.append((now, mine))
 
         if vs.turn is None:
             turn = self.vs_detector.detect(frame)
@@ -285,12 +310,14 @@ class MatchTracker:
             vs.started_at = datetime.now()
             log.info("先攻/後攻: %s", turn)
 
-        recent = collections.Counter(c for t, c in vs._opp_reads if t >= vs.turn_at - OPP_LOOKBACK)
-        if recent:
-            vs.opponent = recent.most_common(1)[0][0]
-            log.info("相手クラス: %s （読み取り %s）", vs.opponent, dict(recent))
+        if vs.opponent is None:
+            vs.opponent = self._vote("相手クラス", vs._opp_reads)
+        if vs.my_class is None:
+            vs.my_class = self._vote("自分のクラス", vs._my_reads)
 
         detail = "先攻" if vs.turn == "first" else "後攻"
+        if vs.my_class:
+            detail += f" / 自分 {vs.my_class}"
         if vs.opponent:
             detail += f" / 相手 {vs.opponent}"
         self.on_status(f"対戦中（{detail}）")

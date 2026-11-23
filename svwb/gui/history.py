@@ -53,6 +53,13 @@ class MatchDialog(QDialog):
         self.deck.setMaxVisibleItems(15)
         self.deck.addItems(decks)
         self.deck.setCurrentText(m.get("deck") or (decks[0] if decks and not match else ""))
+        self.my_class = QComboBox()
+        self.my_class.addItem("", None)
+        for c in theme.CLASSES:
+            self.my_class.addItem(c, c)
+        self.my_class.setCurrentIndex(max(self.my_class.findData(m.get("my_class")), 0))
+        self.my_class.setToolTip("対戦開始の画面から読んだクラスです。CR のグラフを分けるのに使います。\n"
+                                 "空のときはデッキから判断します")
         self.opponent = QComboBox()
         self.opponent.setEditable(True)
         self.opponent.addItems([""] + theme.CLASSES)
@@ -65,6 +72,7 @@ class MatchDialog(QDialog):
         form.addRow("結果", self.result)
         form.addRow("先攻/後攻", self.turn)
         form.addRow("使用デッキ", self.deck)
+        form.addRow("自分のクラス", self.my_class)
         form.addRow("相手クラス", self.opponent)
         form.addRow("CR", self.cr)
         form.addRow("変動CR", self.cr_change)
@@ -81,6 +89,7 @@ class MatchDialog(QDialog):
             "result": self.result.currentData(),
             "turn_order": self.turn.currentData(),
             "deck": self.deck.currentText().strip() or None,
+            "my_class": self.my_class.currentData(),
             "opponent": self.opponent.currentText().strip() or None,
             "cr": _int_or_none(self.cr.text()),
             "cr_change": _int_or_none(self.cr_change.text()),

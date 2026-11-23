@@ -15,6 +15,7 @@ MY_BADGE = (580, 695, 100, 95)
 OPP_BADGE = (1140, 695, 100, 95)
 BADGE_MARGIN = 20
 OPP_CLASS_ROI = (1450, 665, 330, 110)  # 右側の「ネメシス」などのクラス名
+MY_CLASS_ROI = (140, 665, 330, 110)    # 左側の自分のクラス名
 
 
 def _gray(img):
@@ -107,8 +108,18 @@ def _class_variants(crop):
 
 
 def read_opponent_class(ocr, frame):
-    """VS 画面右側のクラス名を OCR して、7クラスのどれかに寄せる"""
-    x, y, w, h = OPP_CLASS_ROI
+    """VS 画面右側のクラス名"""
+    return _read_class(ocr, frame, OPP_CLASS_ROI)
+
+
+def read_my_class(ocr, frame):
+    """VS 画面左側のクラス名"""
+    return _read_class(ocr, frame, MY_CLASS_ROI)
+
+
+def _read_class(ocr, frame, roi):
+    """クラス名を OCR して、7クラスのどれかに寄せる"""
+    x, y, w, h = roi
     best, best_ratio = None, 0.5
     for img, scale in _class_variants(frame[y:y + h, x:x + w]):
         for line in ocr.lines(img, scale=scale):

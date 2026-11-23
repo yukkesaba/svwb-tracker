@@ -3,15 +3,69 @@ import logging
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QAbstractItemView, QDialog, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QMessageBox,
-                               QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout)
+from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
+                               QHeaderView, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout)
 
 from ..db import deck_class
 from . import theme
 
 log = logging.getLogger(__name__)
 HEADERS = ["デッキ", "クラス", "試合", "勝率", "最後に使った日", "状態"]
-CLASS_AUTO = "（名前から自動）"
+CLASS_AUTO = "（自動）"
+
+
+class RegisterDeckDialog(QDialog):
+    """デッキ名とクラスの登録"""
+
+    def __init__(self, parent, settings, seen=None):
+        super().__init__(parent)
+        self.settings = settings
+        self.seen = seen or {}
+        self.setWindowTitle("デッキ名を登録")
+        self.setMinimumWidth(420)
+        lay = QVBoxLayout(self)
+        note = QLabel("ゲーム内で付けた名前と同じにすると、読み取り結果が自動でこの名前に揃います。")
+        note.setObjectName("muted")
+        lay.addWidget(note)
+        form = QFormLayout()
+        self.name = QLineEdit()
+        self.name.textChanged.connect(self._name_changed)
+        self.klass = QComboBox()
+        self.klass.addItem("", None)  # 先頭は「自動」。文字は _name_changed で入れる
+        for c in theme.CLASSES:
+            self.klass.addItem(c, c)
+        form.addRow("デッキ名", self.name)
+        form.addRow("クラス", self.klass)
+        lay.addLayout(form)
+        buttons = QDialogButtonBox()
+        self.ok = buttons.addButton("登録", QDialogButtonBox.ButtonRole.AcceptRole)
+        buttons.addButton("キャンセル", QDialogButtonBox.ButtonRole.RejectRole)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay.addWidget(buttons)
+        self._name_changed("")
+
+    def _name_changed(self, text):
+        name = text.strip()
+        self.ok.setEnabled(bool(name))
+        c = deck_class(name, self.settings.deck_classes, self.seen)
+        if not name:
+            label = "（自動）"
+        elif c:
+            label = f"（自動：{c}）"
+        else:
+            label = "（自動：対戦画面から読み取り）"
+        self.klass.setItemText(0, label)
+
+    def save(self):
+        """自動のままなら、前に指定したクラスがあっても変えない"""
+        name = self.name.text().strip()
+        if name not in self.settings.deck_names:
+            self.settings.deck_names.append(name)
+        if self.klass.currentData():
+            self.settings.deck_classes[name] = self.klass.currentData()
+        self.settings.save()
 
 
 class DeckDialog(QDialog):
@@ -25,7 +79,7 @@ class DeckDialog(QDialog):
 
         note = QLabel("隠したデッキは選択肢と読み取りの候補から外れます。戦績と統計には残ります。\n"
                       "隠したデッキをまた使うと、自動で表示に戻ります。\n"
-                      "CR のグラフはクラスごとに出ます。クラスが「-」のデッキは「クラスを指定」で選んでください。")
+                      "CR のグラフはクラスごとに出ます。クラスは対戦すると自動で分かります。「-」のデッキは「クラスを指定」で選べます。")
         note.setObjectName("muted")
         lay.addWidget(note)
 
@@ -60,10 +114,11 @@ class DeckDialog(QDialog):
 
     def refresh(self):
         rows = self.db.deck_summary()
+        seen = self.db.seen_classes()
         self.table.setRowCount(len(rows))
         for i, d in enumerate(rows):
             hidden = d["deck"] in self.settings.hidden_decks
-            cells = [d["deck"], deck_class(d["deck"], self.settings.deck_classes) or "-", str(d["n"]),
+            cells = [d["deck"], deck_class(d["deck"], self.settings.deck_classes, seen) or "-", str(d["n"]),
                      f"{d['wins'] / d['n'] * 100:.1f}%", d["last"][:10], "非表示" if hidden else ""]
             for j, text in enumerate(cells):
                 it = QTableWidgetItem(text)

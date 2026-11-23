@@ -4,7 +4,7 @@ from dataclasses import asdict
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QHBoxLayout, QLabel, QMainWindow,
                              QMenu, QMessageBox, QPushButton, QSystemTrayIcon, QTabWidget, QVBoxLayout, QWidget)
 
 from .. import __version__, obs
@@ -12,7 +12,7 @@ from ..config import ASSET_DIR
 from ..db import summarize
 from ..worker import TrackerWorker
 from . import theme
-from .deck_dialog import DeckDialog
+from .deck_dialog import DeckDialog, RegisterDeckDialog
 from .history import RESULT_TEXT, TURN_TEXT, HistoryTab
 from .matchup import MatchupTab
 from .settings_dialog import SettingsDialog
@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
         self.deck_combo.currentTextChanged.connect(self._deck_changed)
         row.addWidget(self.deck_combo)
         add_deck = QPushButton("＋ 登録")
-        add_deck.setToolTip("デッキ名を登録します。登録した名前は選択肢に出て、画面の読み取り結果もこの名前に寄せます")
+        add_deck.setToolTip("デッキ名とクラスを登録します。登録した名前は選択肢に出て、画面の読み取り結果もこの名前に寄せます")
         add_deck.clicked.connect(self._register_deck)
         row.addWidget(add_deck)
         manage_decks = QPushButton("デッキ整理")
@@ -223,6 +223,8 @@ class MainWindow(QMainWindow):
         color = theme.WIN if m["result"] == "win" else theme.LOSS
         parts = [f"<span style='color:{color}; font-weight:600'>{RESULT_TEXT[m['result']]}</span>",
                  m["played_at"][5:16], TURN_TEXT.get(m["turn_order"], "-"), m["deck"] or "デッキ不明"]
+        if m["my_class"]:
+            parts[-1] += f"（{m['my_class']}）"
         if m["cr"] is not None:
             parts.append(f"CR {m['cr']}" + ("" if m["cr_change"] is None else f"（{m['cr_change']:+d}）"))
         self.last_label.setText("直前の試合　" + "　".join(parts))
@@ -250,14 +252,10 @@ class MainWindow(QMainWindow):
         return [d for d in names if d not in self.settings.hidden_decks]
 
     def _register_deck(self):
-        name, ok = QInputDialog.getText(self, "デッキ名を登録", "デッキ名（ゲーム内で付けた名前と同じにすると自動で寄せられます）")
-        name = name.strip()
-        if not ok or not name:
-            return
-        if name not in self.settings.deck_names:
-            self.settings.deck_names.append(name)
-        self.settings.save()
-        self.reload()
+        dlg = RegisterDeckDialog(self, self.settings, self.db.seen_classes())
+        if dlg.exec():
+            dlg.save()
+            self.reload()
 
     def _manage_decks(self):
         DeckDialog(self, self.db, self.settings).exec()

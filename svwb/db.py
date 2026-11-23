@@ -7,9 +7,9 @@ from datetime import datetime
 from .config import DB_PATH
 from .screens import CLASSES
 
-COLUMNS = ["id", "played_at", "result", "turn_order", "deck", "opponent", "cr", "cr_change",
+COLUMNS = ["id", "played_at", "result", "turn_order", "deck", "my_class", "opponent", "cr", "cr_change",
            "mp_gained", "rank", "format", "notes", "screenshot", "source"]
-EDITABLE = {"played_at", "result", "turn_order", "deck", "opponent", "cr", "cr_change",
+EDITABLE = {"played_at", "result", "turn_order", "deck", "my_class", "opponent", "cr", "cr_change",
             "mp_gained", "rank", "format", "notes"}
 
 SCHEMA = """
@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS matches (
     result      TEXT NOT NULL CHECK (result IN ('win', 'loss')),
     turn_order  TEXT CHECK (turn_order IN ('first', 'second')),
     deck        TEXT,
-    opponent    TEXT,                       -- 相手のクラス（手入力。将来自動化）
+    my_class    TEXT,                       -- 自分のクラス（VS 画面から。v1.5.0 より前の記録は空）
+    opponent    TEXT,                       -- 相手のクラス
     cr          INTEGER,
     cr_change   INTEGER,
     mp_gained   INTEGER,
@@ -40,6 +41,9 @@ class Database:
         self.conn = sqlite3.connect(str(path))
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        if "my_class" not in {r["name"] for r in self.conn.execute("PRAGMA table_info(matches)")}:
+            self.conn.execute("ALTER TABLE matches ADD COLUMN my_class TEXT")  # v1.4 までの DB
+            self.conn.commit()
 
     def add(self, **values):
         values.setdefault("played_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -111,6 +115,14 @@ class Database:
         return [dict(r) for r in self.conn.execute(
             "SELECT deck, COUNT(*) AS n, SUM(result = 'win') AS wins, MAX(played_at) AS last FROM matches "
             "WHERE deck IS NOT NULL AND deck != '' GROUP BY deck ORDER BY last DESC")]
+
+    def seen_classes(self):
+        """{デッキ: VS 画面から読んだ自分のクラスのうち一番多いもの}"""
+        out = {}
+        for r in self.conn.execute("SELECT deck, my_class FROM matches WHERE deck IS NOT NULL AND my_class IS NOT NULL "
+                                   "GROUP BY deck, my_class ORDER BY COUNT(*) DESC"):
+            out.setdefault(r["deck"], r["my_class"])
+        return out
 
     def rename_deck(self, old, new):
         """デッキ名を変える。new が既にあれば統合になる"""
@@ -200,22 +212,25 @@ def matchup(rows):
 _CLASS_WORDS = [(c, c) for c in CLASSES] + [("メア", "ナイトメア"), ("ビショ", "ビショップ"), ("ネメ", "ネメシス")]
 
 
-def deck_class(deck, assigned=None):
-    """デッキのクラス。デッキ整理で指定したものが優先、なければ名前から。分からなければ None"""
+def deck_class(deck, assigned=None, seen=None):
+    """デッキのクラス。指定したもの → 名前 → VS 画面で読んだもの の順。分からなければ None。
+    （「使用デッキ」を固定したまま別のデッキで戦うと seen は間違うので、名前を先に見る）"""
     if not deck:
         return None
     if (assigned or {}).get(deck):
         return assigned[deck]
-    return next((c for word, c in _CLASS_WORDS if word in deck), None)
+    return next((c for word, c in _CLASS_WORDS if word in deck), None) or (seen or {}).get(deck)
 
 
-def cr_groups(rows, assigned=None):
-    """CR が続いているもの同士に分ける。CR はクラスごとに別なので、クラスが同じデッキは1つにまとめ、
-    クラスの分からないデッキはデッキだけで1つにする。rows（新しい順）→ {名前: rows}、最近使った順"""
+def cr_groups(rows, assigned=None, seen=None):
+    """CR が続いているもの同士に分ける。CR はクラスごとに別なので、クラスが同じ試合は1つにまとめ、
+    クラスの分からないデッキはデッキだけで1つにする。rows（新しい順）→ {名前: rows}、最近使った順。
+    試合ごとに VS 画面で読んだクラスがあれば、デッキ名より優先する"""
     out = {}
     for r in rows:
         if r["cr"] is not None:
-            out.setdefault(deck_class(r["deck"], assigned) or r["deck"] or "（未設定）", []).append(r)
+            name = r.get("my_class") or deck_class(r["deck"], assigned, seen) or r["deck"] or "（未設定）"
+            out.setdefault(name, []).append(r)
     return out
 
 

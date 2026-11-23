@@ -143,7 +143,7 @@ class StatsTab(QWidget):
             self.cr_group.hide()
             name, cr_rows = "", [r for r in rows if r["cr"] is not None]
         else:
-            groups = cr_groups(rows, self.deck_classes())
+            groups = cr_groups(rows, self.deck_classes(), self.db.seen_classes())
             name = self._reload_groups(list(groups))
             cr_rows = groups.get(name, [])
         now = f"現在 {cr_rows[0]['cr']}" + (f"（{name}）" if name else "") if cr_rows else ""
