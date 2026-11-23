@@ -311,6 +311,19 @@ def test_matchup_counts_by_deck_and_opponent():
     assert "エルフ" not in t["B"]
 
 
+def test_cr_chart_split_by_class():
+    from svwb.db import cr_groups, deck_class
+    assert deck_class("純融合ネメシス") == "ネメシス" and deck_class("ミッドメア3") == "ナイトメア"
+    assert deck_class("ランプ") is None and deck_class(None) is None
+    assert deck_class("ランプ", {"ランプ": "ドラゴン"}) == "ドラゴン"
+    rows = [{"deck": d, "cr": c} for d, c in [("ランプ", 1490), ("スペルキマイラ", 1328), ("DDエルフ", None),
+                                              ("純スペルウィッチ", 1342), (None, 1500)]]
+    g = cr_groups(rows, {"スペルキマイラ": "ウィッチ"})
+    assert list(g) == ["ランプ", "ウィッチ", "（未設定）"]  # CR の無い試合は数えない
+    assert [r["cr"] for r in g["ウィッチ"]] == [1328, 1342]
+    assert list(cr_groups(rows)) == ["ランプ", "スペルキマイラ", "ウィッチ", "（未設定）"]
+
+
 def test_obs_text():
     from svwb import obs
     rows = [dict(result="win", deck="X", cr=1520, cr_change=16), dict(result="win", deck="X", cr=1504, cr_change=15),

@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime
 
 from .config import DB_PATH
+from .screens import CLASSES
 
 COLUMNS = ["id", "played_at", "result", "turn_order", "deck", "opponent", "cr", "cr_change",
            "mp_gained", "rank", "format", "notes", "screenshot", "source"]
@@ -192,6 +193,29 @@ def matchup(rows):
                 if opp:
                     w, n = out.setdefault(deck, {}).get(opp, (0, 0))
                     out[deck][opp] = (w + win, n + 1)
+    return out
+
+
+# デッキ名に入っていればクラスが分かる言葉
+_CLASS_WORDS = [(c, c) for c in CLASSES] + [("メア", "ナイトメア"), ("ビショ", "ビショップ"), ("ネメ", "ネメシス")]
+
+
+def deck_class(deck, assigned=None):
+    """デッキのクラス。デッキ整理で指定したものが優先、なければ名前から。分からなければ None"""
+    if not deck:
+        return None
+    if (assigned or {}).get(deck):
+        return assigned[deck]
+    return next((c for word, c in _CLASS_WORDS if word in deck), None)
+
+
+def cr_groups(rows, assigned=None):
+    """CR が続いているもの同士に分ける。CR はクラスごとに別なので、クラスが同じデッキは1つにまとめ、
+    クラスの分からないデッキはデッキだけで1つにする。rows（新しい順）→ {名前: rows}、最近使った順"""
+    out = {}
+    for r in rows:
+        if r["cr"] is not None:
+            out.setdefault(deck_class(r["deck"], assigned) or r["deck"] or "（未設定）", []).append(r)
     return out
 
 

@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(last)
 
         tabs = QTabWidget()
-        self.stats = StatsTab(db, lambda: self.settings.hidden_decks)
+        self.stats = StatsTab(db, lambda: self.settings.hidden_decks, lambda: self.settings.deck_classes)
         self.history = HistoryTab(db, self.reload, self.known_decks)
         self.matchup = MatchupTab(db)
         tabs.addTab(self.stats, "統計")

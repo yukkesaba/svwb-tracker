@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
                              QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
-from ..db import summarize
+from ..db import cr_groups, summarize
 from . import theme
 from .widgets import CrChart, StatCard, fmt_record, panel
 
@@ -28,10 +28,11 @@ def rate_text(wins, total):
 
 
 class StatsTab(QWidget):
-    def __init__(self, db, hidden_decks=lambda: ()):
+    def __init__(self, db, hidden_decks=lambda: (), deck_classes=lambda: {}):
         super().__init__()
         self.db = db
         self.hidden_decks = hidden_decks
+        self.deck_classes = deck_classes
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 12, 0, 0)
 
@@ -64,9 +65,18 @@ class StatsTab(QWidget):
 
         chart_panel = panel()
         cp = QVBoxLayout(chart_panel)
+        head = QHBoxLayout()
         t = QLabel("CR 推移")
         t.setObjectName("muted")
-        cp.addWidget(t)
+        self.cr_group = QComboBox()
+        self.cr_group.setMinimumWidth(180)
+        self.cr_group.setToolTip("CR はクラスごとに別なので、グラフはクラスごとに出します。\n"
+                                 "クラスが分からないデッキは「デッキ整理」で指定できます")
+        self.cr_group.currentIndexChanged.connect(self.refresh)
+        head.addWidget(t)
+        head.addWidget(self.cr_group)
+        head.addStretch()
+        cp.addLayout(head)
         self.chart = CrChart()
         cp.addWidget(self.chart)
         lay.addWidget(chart_panel, 2)
@@ -102,6 +112,21 @@ class StatsTab(QWidget):
         self.deck.setCurrentIndex(max(i, 0))
         self.deck.blockSignals(False)
 
+    def _reload_groups(self, names):
+        """グラフに出すクラスの選択肢を作り直して、出すものの名前を返す。選んでいなければ最近使ったクラス"""
+        cur = self.cr_group.currentData()
+        self.cr_group.blockSignals(True)
+        self.cr_group.clear()
+        self.cr_group.addItem(f"最近使ったクラス（{names[0]}）" if names else "最近使ったクラス", None)
+        for n in names:
+            self.cr_group.addItem(n, n)
+        if cur and cur not in names:  # 期間を変えて記録がなくなっても、選んだクラスのままにする
+            self.cr_group.addItem(cur, cur)
+        self.cr_group.setCurrentIndex(max(self.cr_group.findData(cur), 0) if cur else 0)
+        self.cr_group.blockSignals(False)
+        self.cr_group.show()
+        return cur or (names[0] if names else "")
+
     def refresh(self):
         rows = self.db.matches(deck=self.deck.currentData(), since=period_start(PERIODS[self.period.currentIndex()][1]))
         s = summarize(rows)
@@ -113,12 +138,18 @@ class StatsTab(QWidget):
         if unknown:
             self.c_second.sub.setText(self.c_second.sub.text() + f"（先後不明 {unknown}）")
         net = s["cr_net"]
-        crs = [r["cr"] for r in rows if r["cr"] is not None]
-        self.c_cr.set("-" if net is None else f"{net:+d}", f"現在 {crs[0]}" if crs else "",
+        # グラフと「現在」はクラスごと（デッキで絞り込んでいるときはそのデッキ）
+        if self.deck.currentData():
+            self.cr_group.hide()
+            name, cr_rows = "", [r for r in rows if r["cr"] is not None]
+        else:
+            groups = cr_groups(rows, self.deck_classes())
+            name = self._reload_groups(list(groups))
+            cr_rows = groups.get(name, [])
+        now = f"現在 {cr_rows[0]['cr']}" + (f"（{name}）" if name else "") if cr_rows else ""
+        self.c_cr.set("-" if net is None else f"{net:+d}", now,
                       None if net is None else (theme.WIN if net >= 0 else theme.LOSS))
-
-        pts = [(r["cr"], r["result"]) for r in reversed(rows) if r["cr"] is not None]
-        self.chart.set_points(pts[-200:])
+        self.chart.set_points([(r["cr"], r["result"]) for r in reversed(cr_rows)][-200:])
 
         self._fill(self.by_deck, self._group(rows, "deck"), with_turn=True)
         self._fill(self.by_opp, self._group(rows, "opponent"), with_turn=False)

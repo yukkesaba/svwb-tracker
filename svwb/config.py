@@ -38,6 +38,7 @@ class Settings:
     deck_override: str = ""            # 空なら OCR で自動取得
     deck_names: list = field(default_factory=list)  # 手動で登録したデッキ名（OCR 結果をこれに寄せる）
     hidden_decks: list = field(default_factory=list)  # デッキ整理で隠したデッキ（選択肢と OCR の候補から外す）
+    deck_classes: dict = field(default_factory=dict)  # デッキ名 → クラス（名前から分からないデッキ用）
     start_minimized: bool = False
     obs_enabled: bool = False          # 今日の戦績を data/obs/today.txt に書き出す
     obs_template: str = "{wins}勝 {losses}敗 勝率{rate}%"
